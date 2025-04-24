@@ -1,0 +1,91 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aicade Code Iterator</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+    <style>
+        #code-editor, #output-editor { height: 300px; width: 100%; border: 1px solid #ccc; }
+    </style>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow">
+        <h1 class="text-2xl font-bold mb-4">Aicade Code Iterator for Game Developers</h1>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700">Input Code (Python)</label>
+            <div id="code-editor"></div>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700">Prompt for Changes</label>
+            <textarea id="prompt" class="w-full border rounded p-2" rows="3" placeholder="e.g., Optimize this game loop for performance"></textarea>
+            <div class="mt-2 flex flex-wrap gap-2">
+                <button class="template-prompt bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300 text-sm" data-prompt="Optimize this game loop for performance">Optimize Loop</button>
+                <button class="template-prompt bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300 text-sm" data-prompt="Add delta time for smooth movement">Add Delta Time</button>
+                <button class="template-prompt bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300 text-sm" data-prompt="Implement collision detection">Add Collision Detection</button>
+                <button class="template-prompt bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300 text-sm" data-prompt="Use sprite groups for better rendering">Use Sprite Groups</button>
+                <button class="template-prompt bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300 text-sm" data-prompt="Refactor for readability">Refactor Code</button>
+            </div>
+        </div>
+        
+        <button id="suggest" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mb-4">Get Suggestions</button>
+        
+        <div id="suggestions" class="mb-4 hidden">
+            <h2 class="text-lg font-semibold">Suggestions</h2>
+            <pre id="suggestion-code" class="bg-gray-100 p-4 rounded"></pre>
+            <h2 class="text-lg font-semibold mt-4">Explanation</h2>
+            <p id="explanation" class="bg-gray-100 p-4 rounded"></p>
+            <button id="integrate" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mt-4">Integrate Code</button>
+        </div>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700">Final Output</label>
+            <div id="output-editor"></div>
+        </div>
+    </div>
+    
+    <script src="/static/script.js"></script>
+</body>
+</html>
